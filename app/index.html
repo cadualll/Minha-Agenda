@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#6555ec">
+  <meta name="description" content="Agenda pessoal: tarefas, subtarefas, recorrências, anexos e lembretes.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Minha Agenda IA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="sidebar" class="sidebar"></aside>
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn only-mobile" data-act="drawer" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div class="titles"><h1 id="view-title">Hoje</h1><p id="view-sub"></p></div>
+        <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search" type="search" placeholder="Buscar ( / )" autocomplete="off"></label>
+      </header>
+      <section id="quick" class="quick">
+        <div class="quick-row">
+          <input id="quick-input" placeholder="Adicionar tarefa…" maxlength="500" autocomplete="off" enterkeyhint="done">
+          <button class="btn ghost" data-act="quick-details" title="Abrir com detalhes">Detalhes</button>
+          <button class="btn primary" data-act="quick">Adicionar</button>
+        </div>
+        <div id="quick-preview" class="quick-preview"></div>
+      </section>
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+  <div class="scrim" data-act="drawer"></div>
+  <nav id="bottom-nav" class="bottom-nav"></nav>
+  <button class="fab" data-act="new" aria-label="Nova tarefa">+</button>
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script src="js/config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

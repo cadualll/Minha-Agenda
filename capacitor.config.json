@@ -1,0 +1,9 @@
+{
+  "appId": "com.minhaagenda.pessoal",
+  "appName": "Minha Agenda IA",
+  "webDir": "app",
+  "android": { "allowMixedContent": false, "backgroundColor": "#f6f7fb" },
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_agenda", "iconColor": "#6555EC" }
+  }
+}

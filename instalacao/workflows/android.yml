@@ -1,0 +1,104 @@
+name: Gerar app Android (APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['app/**', 'capacitor.config.json', 'package.json', 'scripts/**', '.github/workflows/android.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      KS_PASS: minhaagenda
+      KS_ALIAS: minhaagenda
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+
+      - name: Testes automáticos
+        run: npm test
+
+      - name: Gravar dados do Supabase no app
+        run: node scripts/write-config.mjs
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+
+      - name: Instalar Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: Criar projeto Android
+        run: |
+          npx cap add android
+          node scripts/patch-android.mjs
+
+      - name: Configuração do Firebase (google-services.json)
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GS" ]; then
+            printf '%s' "$GS" > android/app/google-services.json
+            echo "Firebase configurado."
+          else
+            echo "::warning::Segredo GOOGLE_SERVICES_JSON não configurado: o app funciona, mas só com alarmes do próprio celular (tarefas criadas no PC não vão avisar o celular)."
+          fi
+
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
+
+      - name: Chave de assinatura
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$HOME/agenda.keystore"
+          else
+            echo "::warning::Segredo ANDROID_KEYSTORE não configurado: usando uma chave temporária. Para atualizar o app depois será preciso desinstalar antes."
+            keytool -genkeypair -keystore "$HOME/agenda.keystore" -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 20000 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" -dname "CN=Minha Agenda IA, C=BR"
+          fi
+
+      - name: Compilar APK de produção (leve, sem modo de depuração)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$HOME/agenda.keystore" \
+            -Pandroid.injected.signing.store.password="$KS_PASS" \
+            -Pandroid.injected.signing.key.alias="$KS_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KS_PASS"
+          OUT=app/build/outputs/apk/release
+          if [ -f "$OUT/app-release.apk" ]; then
+            cp "$OUT/app-release.apk" ../MinhaAgendaIA.apk
+          else
+            # Plano B: assina manualmente se o Gradle gerou o APK sem assinatura.
+            BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+            "$BT/zipalign" -p -f 4 "$OUT/app-release-unsigned.apk" aligned.apk
+            "$BT/apksigner" sign --ks "$HOME/agenda.keystore" --ks-pass env:KS_PASS --ks-key-alias "$KS_ALIAS" --key-pass env:KS_PASS --out ../MinhaAgendaIA.apk aligned.apk
+          fi
+          ls -lh ../MinhaAgendaIA.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MinhaAgendaIA-apk
+          path: MinhaAgendaIA.apk
+
+      - name: Publicar para baixar pelo celular (aba Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Minha Agenda IA — versão ${{ github.run_number }}
+          body: Abra esta página no celular, toque em MinhaAgendaIA.apk para baixar e instale.
+          files: MinhaAgendaIA.apk
+          make_latest: true
